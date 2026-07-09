@@ -2039,11 +2039,12 @@ func (driver *Driver) NodeExpandVolume(ctx context.Context, request *csi.NodeExp
 		// We must read the staging device info to get the real device path (e.g., /dev/mapper/mpathX)
 		stagingPath := request.GetStagingTargetPath()
 		if stagingPath == "" {
-			// For RWX block volumes, kubelet omits staging_target_path in NodeExpandVolume because
-			// staging is shared across nodes and kubelet does not track it per-pod during expansion.
-			// Derive the staging path from the publish path:
-			//   publish: .../volumeDevices/publish/<volID>/<podUID>
-			//   staging: .../volumeDevices/staging/<volID>/
+		// staging_target_path is OPTIONAL in the CSI NodeExpandVolume spec, and kubelet's 
+		// block-volume expand path leaves it empty (it's only threaded through for filesystem 
+		// resize). When empty, derive the node-local staging path from the per-pod publish 
+		// path — both live under the same kubelet volumeDevices directory:
+		//  //   publish: .../volumeDevices/publish/<pvName>/<podUID> 
+		// //    staging: .../volumeDevices/staging/<pvName>/
 			stagingPath = strings.Replace(filepath.Dir(request.GetVolumePath()), "/publish/", "/staging/", 1)
 			log.Infof("staging_target_path not provided (RWX block volume), derived staging path: %s", stagingPath)
 		}
